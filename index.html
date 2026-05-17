@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Nexora AI</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+
+<body>
+
+<!-- AUTH SCREEN -->
+<div id="auth" class="auth">
+  <h2>Nexora AI Login</h2>
+
+  <input id="email" placeholder="Email"/>
+  <input id="password" type="password" placeholder="Password"/>
+
+  <button onclick="signup()">Sign up</button>
+  <button onclick="login()">Login</button>
+</div>
+
+<!-- MAIN APP -->
+<div id="app" class="app hidden">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="brand">Nexora AI</div>
+
+    <button onclick="newChat()">+ New Chat</button>
+
+    <div class="history-title">Conversations</div>
+    <div id="history"></div>
+  </div>
+
+  <!-- CHAT -->
+  <div class="chat">
+
+    <div id="messages" class="messages"></div>
+
+    <div class="input-area">
+      <input id="input" placeholder="Message..." onkeydown="handleKey(event)"/>
+      <button onclick="sendMessage()">Send</button>
+    </div>
+
+  </div>
+
+</div>
+
+<script src="app.js"></script>
+
+</body>
