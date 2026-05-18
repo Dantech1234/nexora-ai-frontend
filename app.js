@@ -4,23 +4,49 @@ const API_URL = "https://nexora-ai-61ku.onrender.com";
 
 let currentUser = null;
 let conversation_id = null;
-let authReady = false;
 
 // ======================
-// ELEMENTS
+// SAFE DOM ACCESS (PREVENT CRASHES)
 // ======================
-const emailEl = document.getElementById("email");
-const passwordEl = document.getElementById("password");
-const authErrorEl = document.getElementById("auth-error");
-const loginBtn = document.getElementById("loginBtn");
-const signupBtn = document.getElementById("signupBtn");
+function el(id) {
+  return document.getElementById(id);
+}
 
 // ======================
-// UI CONTROLLER
+// AUTH ERROR UI
+// ======================
+function showAuthError(msg) {
+  const box = el("auth-error");
+  if (box) {
+    box.innerText = msg;
+    box.style.color = "red";
+  }
+}
+
+function clearAuthError() {
+  const box = el("auth-error");
+  if (box) box.innerText = "";
+}
+
+// ======================
+// VALIDATION
+// ======================
+function validateEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function validatePassword(password) {
+  return password && password.length >= 6;
+}
+
+// ======================
+// UI SWITCH
 // ======================
 function setUI(user) {
-  const auth = document.getElementById("auth");
-  const app = document.getElementById("app");
+  const auth = el("auth");
+  const app = el("app");
+
+  if (!auth || !app) return;
 
   if (user) {
     auth.classList.add("hidden");
@@ -32,62 +58,7 @@ function setUI(user) {
 }
 
 // ======================
-// ERROR HANDLING
-// ======================
-function showError(msg) {
-  if (!authErrorEl) return;
-  authErrorEl.innerText = msg;
-  authErrorEl.style.color = "red";
-}
-
-function clearError() {
-  if (!authErrorEl) return;
-  authErrorEl.innerText = "";
-}
-
-// ======================
-// VALIDATION
-// ======================
-function validate(email, password) {
-  clearError();
-
-  if (!email || !password) {
-    showError("Email and password cannot be empty");
-    return false;
-  }
-
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
-    showError("Invalid email format");
-    return false;
-  }
-
-  if (password.length < 6) {
-    showError("Password must be at least 6 characters");
-    return false;
-  }
-
-  return true;
-}
-
-// ======================
-// BUTTON LOADING STATE
-// ======================
-function setLoading(btn, state) {
-  if (!btn) return;
-
-  if (state) {
-    btn.disabled = true;
-    btn.dataset.text = btn.innerText;
-    btn.innerText = "Loading...";
-  } else {
-    btn.disabled = false;
-    btn.innerText = btn.dataset.text;
-  }
-}
-
-// ======================
-// AUTH INIT (SAFE FOR ALL DEVICES)
+// AUTH INIT
 // ======================
 async function initAuth() {
   const { data } = await supabase.auth.getSession();
@@ -96,8 +67,6 @@ async function initAuth() {
   setUI(currentUser);
 
   if (currentUser) loadConversations();
-
-  authReady = true;
 }
 
 initAuth();
@@ -105,9 +74,8 @@ initAuth();
 // ======================
 // AUTH LISTENER
 // ======================
-supabase.auth.onAuthStateChange((event, session) => {
+supabase.auth.onAuthStateChange((_event, session) => {
   currentUser = session?.user || null;
-
   setUI(currentUser);
 
   if (currentUser) loadConversations();
@@ -116,118 +84,96 @@ supabase.auth.onAuthStateChange((event, session) => {
 // ======================
 // SIGNUP
 // ======================
-function showAuthError(msg) {
-  const el = document.getElementById("auth-error");
-  if (!el) return;
-  el.innerText = msg;
-}
-
-function clearAuthError() {
-  const el = document.getElementById("auth-error");
-  if (!el) return;
-  el.innerText = "";
-}
-
-function validateEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
-function validatePassword(password) {
-  return password.length >= 6;
-}
-
-// ======================
-// SIGNUP (CLEAN + SAFE)
-// ======================
 async function signup() {
-  const email = document.getElementById("email").value.trim();
-  const password = document.getElementById("password").value.trim();
+  const email = el("email")?.value.trim();
+  const password = el("password")?.value.trim();
+  const btn = el("signupBtn");
 
   clearAuthError();
 
-  if (!email || !password) {
-    return showAuthError("Please fill in all fields.");
+  if (!email || !password)
+    return showAuthError("Please fill in all fields");
+
+  if (!validateEmail(email))
+    return showAuthError("Invalid email format");
+
+  if (!validatePassword(password))
+    return showAuthError("Password must be 6+ characters");
+
+  try {
+    if (btn) {
+      btn.disabled = true;
+      btn.innerText = "Creating...";
+    }
+
+    const { error } = await supabase.auth.signUp({
+      email,
+      password
+    });
+
+    if (error) return showAuthError(error.message);
+
+    showAuthError("Account created. Check email.");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerText = "Sign Up";
+    }
   }
-
-  if (!validateEmail(email)) {
-    return showAuthError("Please enter a valid email.");
-  }
-
-  if (!validatePassword(password)) {
-    return showAuthError("Password must be at least 6 characters.");
-  }
-
-  const btn = document.getElementById("signupBtn");
-  btn.disabled = true;
-  btn.innerText = "Creating account...";
-
-  const { error } = await supabase.auth.signUp({
-    email,
-    password
-  });
-
-  btn.disabled = false;
-  btn.innerText = "Sign Up";
-
-  if (error) {
-    return showAuthError(error.message);
-  }
-
-  showAuthError("Account created. Check email to verify.");
 }
 
 // ======================
-// LOGIN (CLEAN + SAFE)
+// LOGIN
 // ======================
 async function login() {
-  const email = document.getElementById("email").value.trim();
-  const password = document.getElementById("password").value.trim();
+  const email = el("email")?.value.trim();
+  const password = el("password")?.value.trim();
+  const btn = el("loginBtn");
 
   clearAuthError();
 
-  if (!email || !password) {
-    return showAuthError("Email and password cannot be empty.");
+  if (!email || !password)
+    return showAuthError("Email and password required");
+
+  if (!validateEmail(email))
+    return showAuthError("Invalid email format");
+
+  if (!validatePassword(password))
+    return showAuthError("Password must be 6+ characters");
+
+  try {
+    if (btn) {
+      btn.disabled = true;
+      btn.innerText = "Logging in...";
+    }
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (error) return showAuthError(error.message);
+
+    currentUser = data?.user || null;
+    setUI(currentUser);
+
+    if (currentUser) loadConversations();
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerText = "Login";
+    }
   }
-
-  if (!validateEmail(email)) {
-    return showAuthError("Invalid email format.");
-  }
-
-  if (!validatePassword(password)) {
-    return showAuthError("Password must be at least 6 characters.");
-  }
-
-  const btn = document.getElementById("loginBtn");
-  btn.disabled = true;
-  btn.innerText = "Logging in...";
-
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password
-  });
-
-  btn.disabled = false;
-  btn.innerText = "Login";
-
-  if (error) {
-    return showAuthError("Login failed: " + error.message);
-  }
-
-  if (!data?.user) {
-    return showAuthError("Login failed: No user returned.");
-  }
-
-  currentUser = data.user;
 }
+
 // ======================
-// CHAT STREAMING
+// CHAT
 // ======================
 async function sendMessage() {
-  if (!currentUser) return showError("Login first");
+  if (!currentUser) return showAuthError("Login first");
 
-  const input = document.getElementById("input");
-  const text = input.value.trim();
-
+  const input = el("input");
+  const text = input?.value.trim();
   if (!text) return;
 
   addMessage(text, "user");
@@ -267,7 +213,6 @@ async function sendMessage() {
     }
 
     loadConversations();
-
   } catch (err) {
     console.error(err);
     botDiv.innerHTML = "Network error";
@@ -282,7 +227,7 @@ function addMessage(text, type) {
   div.className = `msg ${type}`;
   div.innerHTML = format(text);
 
-  document.getElementById("messages").appendChild(div);
+  el("messages")?.appendChild(div);
   scrollBottom();
 }
 
@@ -290,15 +235,15 @@ function createBotMessage() {
   const div = document.createElement("div");
   div.className = "msg bot";
 
-  document.getElementById("messages").appendChild(div);
+  el("messages")?.appendChild(div);
   scrollBottom();
 
   return div;
 }
 
 function scrollBottom() {
-  const el = document.getElementById("messages");
-  el.scrollTop = el.scrollHeight;
+  const box = el("messages");
+  if (box) box.scrollTop = box.scrollHeight;
 }
 
 // ======================
@@ -312,14 +257,6 @@ function format(text) {
 }
 
 // ======================
-// CHAT SYSTEM
-// ======================
-function newChat() {
-  conversation_id = null;
-  document.getElementById("messages").innerHTML = "";
-}
-
-// ======================
 // CONVERSATIONS
 // ======================
 async function loadConversations() {
@@ -327,13 +264,15 @@ async function loadConversations() {
 
   const { data, error } = await supabase
     .from("conversations")
-    .select("id, title, created_at")
+    .select("id, title")
     .eq("user_id", currentUser.id)
     .order("created_at", { ascending: false });
 
   if (error) return console.error(error);
 
-  const history = document.getElementById("history");
+  const history = el("history");
+  if (!history) return;
+
   history.innerHTML = "";
 
   (data || []).forEach(c => {
@@ -362,7 +301,10 @@ async function loadMessages(id) {
 
   if (error) return console.error(error);
 
-  document.getElementById("messages").innerHTML = "";
+  const box = el("messages");
+  if (!box) return;
+
+  box.innerHTML = "";
 
   (data || []).forEach(m => {
     addMessage(m.content, m.role === "user" ? "user" : "bot");
@@ -372,10 +314,16 @@ async function loadMessages(id) {
 }
 
 // ======================
-// MAKE FUNCTIONS GLOBAL (CRITICAL FIX)
+// GLOBAL EXPORTS (IMPORTANT)
 // ======================
 window.login = login;
 window.signup = signup;
 window.sendMessage = sendMessage;
-window.handleKey = handleKey;
-window.newChat = newChat;
+window.handleKey = (e) => {
+  if (e.key === "Enter") sendMessage();
+};
+window.newChat = () => {
+  conversation_id = null;
+  const box = el("messages");
+  if (box) box.innerHTML = "";
+};
