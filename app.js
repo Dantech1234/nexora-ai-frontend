@@ -7,6 +7,15 @@ let conversation_id = null;
 let authReady = false;
 
 // ======================
+// ELEMENTS
+// ======================
+const emailEl = document.getElementById("email");
+const passwordEl = document.getElementById("password");
+const authErrorEl = document.getElementById("auth-error");
+const loginBtn = document.getElementById("loginBtn");
+const signupBtn = document.getElementById("signupBtn");
+
+// ======================
 // UI CONTROLLER
 // ======================
 function setUI(user) {
@@ -23,106 +32,139 @@ function setUI(user) {
 }
 
 // ======================
-// SAFE AUTH BOOTSTRAP (FIXED FOR MOBILE + GITHUB PAGES)
+// ERROR HANDLING
 // ======================
-async function initAuth() {
-  try {
-    const { data, error } = await supabase.auth.getSession();
+function showError(msg) {
+  if (!authErrorEl) return;
+  authErrorEl.innerText = msg;
+  authErrorEl.style.color = "red";
+}
 
-    if (error) console.error("Session error:", error);
+function clearError() {
+  if (!authErrorEl) return;
+  authErrorEl.innerText = "";
+}
 
-    currentUser = data?.session?.user || null;
-    setUI(currentUser);
+// ======================
+// VALIDATION
+// ======================
+function validate(email, password) {
+  clearError();
 
-    if (currentUser) {
-      await loadConversations();
-    }
+  if (!email || !password) {
+    showError("Email and password cannot be empty");
+    return false;
+  }
 
-    authReady = true;
-  } catch (err) {
-    console.error("Auth init failed:", err);
-    setUI(null);
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    showError("Invalid email format");
+    return false;
+  }
+
+  if (password.length < 6) {
+    showError("Password must be at least 6 characters");
+    return false;
+  }
+
+  return true;
+}
+
+// ======================
+// BUTTON LOADING STATE
+// ======================
+function setLoading(btn, state) {
+  if (!btn) return;
+
+  if (state) {
+    btn.disabled = true;
+    btn.dataset.text = btn.innerText;
+    btn.innerText = "Loading...";
+  } else {
+    btn.disabled = false;
+    btn.innerText = btn.dataset.text;
   }
 }
 
 // ======================
-// AUTH STATE LISTENER (REAL-TIME SYNC)
+// AUTH INIT (SAFE FOR ALL DEVICES)
 // ======================
-supabase.auth.onAuthStateChange((event, session) => {
-  console.log("[AUTH EVENT]", event);
-
-  currentUser = session?.user || null;
-  setUI(currentUser);
-
-  if (currentUser) {
-    loadConversations();
-  }
-});
-
-// ======================
-// DELAYED SESSION RECOVERY (CRITICAL FIX)
-// ======================
-setTimeout(async () => {
-  if (currentUser) return;
-
+async function initAuth() {
   const { data } = await supabase.auth.getSession();
 
-  if (data?.session?.user) {
-    currentUser = data.session.user;
-    setUI(currentUser);
-    loadConversations();
-  }
-}, 1200);
+  currentUser = data?.session?.user || null;
+  setUI(currentUser);
 
-// run init
+  if (currentUser) loadConversations();
+
+  authReady = true;
+}
+
 initAuth();
 
 // ======================
-// AUTH
+// AUTH LISTENER
+// ======================
+supabase.auth.onAuthStateChange((event, session) => {
+  currentUser = session?.user || null;
+
+  setUI(currentUser);
+
+  if (currentUser) loadConversations();
+});
+
+// ======================
+// SIGNUP
 // ======================
 async function signup() {
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
+  const email = emailEl.value.trim();
+  const password = passwordEl.value.trim();
+
+  if (!validate(email, password)) return;
+
+  setLoading(signupBtn, true);
 
   const { error } = await supabase.auth.signUp({
     email,
     password
   });
 
-  if (error) return alert(error.message);
+  setLoading(signupBtn, false);
 
-  alert("Account created. Check email to verify, then login.");
+  if (error) return showError(error.message);
+
+  authErrorEl.style.color = "green";
+  authErrorEl.innerText = "Account created. Check email to verify.";
 }
 
+// ======================
+// LOGIN
+// ======================
 async function login() {
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
+  const email = emailEl.value.trim();
+  const password = passwordEl.value.trim();
+
+  if (!validate(email, password)) return;
+
+  setLoading(loginBtn, true);
 
   const { error } = await supabase.auth.signInWithPassword({
     email,
     password
   });
 
-  if (error) return alert(error.message);
+  setLoading(loginBtn, false);
 
-  // UI handled automatically by auth listener
+  if (error) return showError(error.message);
+
+  clearError();
 }
 
 // ======================
-// ENTER KEY
-// ======================
-function handleKey(e) {
-  if (e.key === "Enter") sendMessage();
-}
-
-// ======================
-// SEND MESSAGE (STREAMING SAFE)
+// CHAT STREAMING
 // ======================
 async function sendMessage() {
-  if (!currentUser) {
-    alert("Please login first");
-    return;
-  }
+  if (!currentUser) return showError("Login first");
 
   const input = document.getElementById("input");
   const text = input.value.trim();
@@ -201,7 +243,7 @@ function scrollBottom() {
 }
 
 // ======================
-// FORMATTER (CHATGPT STYLE SAFE RENDER)
+// FORMAT
 // ======================
 function format(text) {
   return text
@@ -211,7 +253,7 @@ function format(text) {
 }
 
 // ======================
-// NEW CHAT
+// CHAT SYSTEM
 // ======================
 function newChat() {
   conversation_id = null;
@@ -230,10 +272,7 @@ async function loadConversations() {
     .eq("user_id", currentUser.id)
     .order("created_at", { ascending: false });
 
-  if (error) {
-    console.error("Conversation error:", error);
-    return;
-  }
+  if (error) return console.error(error);
 
   const history = document.getElementById("history");
   history.innerHTML = "";
@@ -262,10 +301,7 @@ async function loadMessages(id) {
     .eq("conversation_id", id)
     .order("created_at", { ascending: true });
 
-  if (error) {
-    console.error(error);
-    return;
-  }
+  if (error) return console.error(error);
 
   document.getElementById("messages").innerHTML = "";
 

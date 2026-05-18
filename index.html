@@ -9,18 +9,29 @@
 
 <body>
 
-<!-- AUTH SCREEN -->
+<!-- ======================
+AUTH SCREEN
+====================== -->
 <div id="auth" class="auth">
+
   <h2>Nexora AI Login</h2>
 
-  <input id="email" placeholder="Email"/>
-  <input id="password" type="password" placeholder="Password"/>
+  <!-- INLINE ERROR DISPLAY (IMPORTANT FOR NEW APP.JS) -->
+  <div id="auth-error" class="auth-error"></div>
 
-  <button onclick="signup()">Sign up</button>
-  <button onclick="login()">Login</button>
+  <!-- AUTH INPUTS -->
+  <input id="email" type="email" placeholder="Email" />
+  <input id="password" type="password" placeholder="Password" />
+
+  <!-- AUTH BUTTONS (MUST MATCH app.js IDs) -->
+  <button id="loginBtn" onclick="login()">Login</button>
+  <button id="signupBtn" onclick="signup()">Sign Up</button>
+
 </div>
 
-<!-- MAIN APP -->
+<!-- ======================
+MAIN APP
+====================== -->
 <div id="app" class="app hidden">
 
   <!-- SIDEBAR -->
@@ -33,7 +44,7 @@
     <div id="history"></div>
   </div>
 
-  <!-- CHAT -->
+  <!-- CHAT AREA -->
   <div class="chat">
 
     <div id="messages" class="messages"></div>
@@ -50,3 +61,4 @@
 <script src="app.js"></script>
 
 </body>
+</html>

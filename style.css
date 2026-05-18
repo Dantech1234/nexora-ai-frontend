@@ -1,113 +1,228 @@
+/* ======================
+GLOBAL RESET
+====================== */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: Arial, sans-serif;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
 }
 
 body {
   background: #0f1115;
+  color: #e6e6e6;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ======================
+UTILITY
+====================== */
+.hidden {
+  display: none;
+}
+
+/* ======================
+AUTH SCREEN
+====================== */
+.auth {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  background: radial-gradient(circle at top, #1a1f2b, #0f1115);
+}
+
+.auth h2 {
+  margin-bottom: 10px;
+  font-size: 24px;
+  color: #ffffff;
+}
+
+/* inputs */
+.auth input {
+  width: 280px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #2a2f3a;
+  background: #151922;
+  color: white;
+  outline: none;
+  transition: 0.2s;
+}
+
+.auth input:focus {
+  border-color: #4a6fff;
+  box-shadow: 0 0 0 2px rgba(74,111,255,0.2);
+}
+
+/* error box */
+.auth-error {
+  width: 280px;
+  min-height: 20px;
+  font-size: 13px;
+  color: #ff4d4d;
+  text-align: center;
+}
+
+/* buttons */
+.auth button {
+  width: 280px;
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  transition: 0.2s;
+}
+
+#loginBtn {
+  background: #4a6fff;
   color: white;
 }
 
-/* LAYOUT */
+#signupBtn {
+  background: transparent;
+  border: 1px solid #4a6fff;
+  color: #4a6fff;
+}
+
+.auth button:hover {
+  transform: translateY(-1px);
+}
+
+/* disabled state (loading) */
+.auth button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ======================
+APP LAYOUT
+====================== */
 .app {
   display: flex;
   height: 100vh;
 }
 
-/* SIDEBAR */
+/* ======================
+SIDEBAR
+====================== */
 .sidebar {
   width: 260px;
-  background: #161a22;
+  background: #141824;
   padding: 15px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  border-right: 1px solid #222634;
 }
 
 .brand {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: bold;
+  color: #4a6fff;
+  margin-bottom: 10px;
 }
 
 .sidebar button {
   padding: 10px;
-  background: #2b6fff;
+  border-radius: 6px;
   border: none;
+  background: #4a6fff;
   color: white;
-  border-radius: 8px;
   cursor: pointer;
 }
 
 .history-title {
-  margin-top: 10px;
+  margin-top: 15px;
   font-size: 12px;
   opacity: 0.6;
 }
 
 .history-item {
   padding: 8px;
-  margin-top: 6px;
-  background: #222838;
   border-radius: 6px;
   cursor: pointer;
   font-size: 13px;
+  background: transparent;
+  transition: 0.2s;
 }
 
 .history-item:hover {
-  background: #2b6fff;
+  background: #1e2333;
 }
 
-/* CHAT */
+/* ======================
+CHAT AREA
+====================== */
 .chat {
   flex: 1;
   display: flex;
   flex-direction: column;
+  height: 100vh;
 }
 
-/* MESSAGES */
+/* messages */
 .messages {
   flex: 1;
   padding: 20px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
-/* MESSAGE BUBBLES */
+/* message bubbles */
 .msg {
-  padding: 12px 14px;
-  border-radius: 12px;
-  max-width: 75%;
-  line-height: 1.5;
-  font-size: 15px;
-  animation: fadeIn 0.2s ease-in;
+  max-width: 70%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  line-height: 1.4;
+  font-size: 14px;
+  word-wrap: break-word;
 }
 
-.user {
+/* user message */
+.msg.user {
   align-self: flex-end;
-  background: #2b6fff;
+  background: #4a6fff;
+  color: white;
 }
 
-.bot {
+/* bot message */
+.msg.bot {
   align-self: flex-start;
-  background: #2a2f3a;
+  background: #1c2230;
+  color: #e6e6e6;
 }
 
-/* INPUT */
+/* code blocks */
+.msg pre {
+  background: #0b0f17;
+  padding: 10px;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+/* ======================
+INPUT AREA
+====================== */
 .input-area {
   display: flex;
-  padding: 10px;
-  background: #161a22;
+  padding: 12px;
+  border-top: 1px solid #222634;
+  background: #141824;
 }
 
 .input-area input {
   flex: 1;
   padding: 12px;
-  border: none;
   border-radius: 8px;
+  border: 1px solid #2a2f3a;
   background: #0f1115;
   color: white;
   outline: none;
@@ -117,63 +232,20 @@ body {
   margin-left: 10px;
   padding: 12px 16px;
   border: none;
-  background: #2b6fff;
-  color: white;
   border-radius: 8px;
+  background: #4a6fff;
+  color: white;
   cursor: pointer;
 }
 
-/* ANIMATION */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(5px); }
-  to { opacity: 1; transform: translateY(0); }
+/* ======================
+SCROLLBAR (optional polish)
+====================== */
+::-webkit-scrollbar {
+  width: 6px;
 }
 
-/* CODE BLOCKS */
-pre {
-  background: #0b0d12;
-  padding: 10px;
-  border-radius: 8px;
-  overflow-x: auto;
+::-webkit-scrollbar-thumb {
+  background: #2a2f3a;
+  border-radius: 10px;
 }
-
-code {
-  font-family: monospace;
-  color: #9cdcfe;
-}
-
-
-.hidden {
-  display: none;
-}
-
-.auth {
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 10px;
-  background: #0f1115;
-}
-
-.auth input {
-  padding: 10px;
-  width: 220px;
-  border: none;
-  border-radius: 6px;
-  background: #1a1f2b;
-  color: white;
-}
-
-.auth button {
-  padding: 10px 15px;
-  border: none;
-  background: #2b6fff;
-  color: white;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-
-
