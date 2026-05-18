@@ -4,9 +4,10 @@ const API_URL = "https://nexora-ai-61ku.onrender.com";
 
 let currentUser = null;
 let conversation_id = null;
+let authReady = false;
 
 // ======================
-// UI CONTROLLER (SINGLE SOURCE OF TRUTH)
+// UI CONTROLLER
 // ======================
 function setUI(user) {
   const auth = document.getElementById("auth");
@@ -22,24 +23,35 @@ function setUI(user) {
 }
 
 // ======================
-// AUTH INITIALIZATION (DEVICE-PROOF)
+// SAFE AUTH BOOTSTRAP (FIXED FOR MOBILE + GITHUB PAGES)
 // ======================
 async function initAuth() {
-  const { data } = await supabase.auth.getSession();
+  try {
+    const { data, error } = await supabase.auth.getSession();
 
-  if (data.session?.user) {
-    currentUser = data.session.user;
+    if (error) console.error("Session error:", error);
+
+    currentUser = data?.session?.user || null;
     setUI(currentUser);
-    loadConversations();
-  } else {
+
+    if (currentUser) {
+      await loadConversations();
+    }
+
+    authReady = true;
+  } catch (err) {
+    console.error("Auth init failed:", err);
     setUI(null);
   }
 }
 
-// Listen for ALL auth changes (login/logout/session refresh)
+// ======================
+// AUTH STATE LISTENER (REAL-TIME SYNC)
+// ======================
 supabase.auth.onAuthStateChange((event, session) => {
-  currentUser = session?.user || null;
+  console.log("[AUTH EVENT]", event);
 
+  currentUser = session?.user || null;
   setUI(currentUser);
 
   if (currentUser) {
@@ -47,11 +59,26 @@ supabase.auth.onAuthStateChange((event, session) => {
   }
 });
 
-// Run auth init immediately
+// ======================
+// DELAYED SESSION RECOVERY (CRITICAL FIX)
+// ======================
+setTimeout(async () => {
+  if (currentUser) return;
+
+  const { data } = await supabase.auth.getSession();
+
+  if (data?.session?.user) {
+    currentUser = data.session.user;
+    setUI(currentUser);
+    loadConversations();
+  }
+}, 1200);
+
+// run init
 initAuth();
 
 // ======================
-// AUTH FUNCTIONS
+// AUTH
 // ======================
 async function signup() {
   const email = document.getElementById("email").value;
@@ -64,7 +91,7 @@ async function signup() {
 
   if (error) return alert(error.message);
 
-  alert("Account created. Check email or login.");
+  alert("Account created. Check email to verify, then login.");
 }
 
 async function login() {
@@ -78,24 +105,29 @@ async function login() {
 
   if (error) return alert(error.message);
 
-  // NO UI SWITCH HERE — handled by auth listener
+  // UI handled automatically by auth listener
 }
 
 // ======================
-// ENTER KEY SUPPORT
+// ENTER KEY
 // ======================
 function handleKey(e) {
   if (e.key === "Enter") sendMessage();
 }
 
 // ======================
-// SEND MESSAGE (STREAMING)
+// SEND MESSAGE (STREAMING SAFE)
 // ======================
 async function sendMessage() {
+  if (!currentUser) {
+    alert("Please login first");
+    return;
+  }
+
   const input = document.getElementById("input");
   const text = input.value.trim();
 
-  if (!text || !currentUser) return;
+  if (!text) return;
 
   addMessage(text, "user");
   input.value = "";
@@ -130,7 +162,6 @@ async function sendMessage() {
 
       fullText += decoder.decode(value);
       botDiv.innerHTML = format(fullText);
-
       scrollBottom();
     }
 
@@ -170,7 +201,7 @@ function scrollBottom() {
 }
 
 // ======================
-// FORMAT (SAFE CHAT STYLE)
+// FORMATTER (CHATGPT STYLE SAFE RENDER)
 // ======================
 function format(text) {
   return text
@@ -200,7 +231,7 @@ async function loadConversations() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error(error);
+    console.error("Conversation error:", error);
     return;
   }
 
