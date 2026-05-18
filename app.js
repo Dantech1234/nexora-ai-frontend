@@ -116,50 +116,109 @@ supabase.auth.onAuthStateChange((event, session) => {
 // ======================
 // SIGNUP
 // ======================
+function showAuthError(msg) {
+  const el = document.getElementById("auth-error");
+  if (!el) return;
+  el.innerText = msg;
+}
+
+function clearAuthError() {
+  const el = document.getElementById("auth-error");
+  if (!el) return;
+  el.innerText = "";
+}
+
+function validateEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function validatePassword(password) {
+  return password.length >= 6;
+}
+
+// ======================
+// SIGNUP (CLEAN + SAFE)
+// ======================
 async function signup() {
-  const email = emailEl.value.trim();
-  const password = passwordEl.value.trim();
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value.trim();
 
-  if (!validate(email, password)) return;
+  clearAuthError();
 
-  setLoading(signupBtn, true);
+  if (!email || !password) {
+    return showAuthError("Please fill in all fields.");
+  }
+
+  if (!validateEmail(email)) {
+    return showAuthError("Please enter a valid email.");
+  }
+
+  if (!validatePassword(password)) {
+    return showAuthError("Password must be at least 6 characters.");
+  }
+
+  const btn = document.getElementById("signupBtn");
+  btn.disabled = true;
+  btn.innerText = "Creating account...";
 
   const { error } = await supabase.auth.signUp({
     email,
     password
   });
 
-  setLoading(signupBtn, false);
+  btn.disabled = false;
+  btn.innerText = "Sign Up";
 
-  if (error) return showError(error.message);
+  if (error) {
+    return showAuthError(error.message);
+  }
 
-  authErrorEl.style.color = "green";
-  authErrorEl.innerText = "Account created. Check email to verify.";
+  showAuthError("Account created. Check email to verify.");
 }
 
 // ======================
-// LOGIN
+// LOGIN (CLEAN + SAFE)
 // ======================
 async function login() {
-  const email = emailEl.value.trim();
-  const password = passwordEl.value.trim();
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value.trim();
 
-  if (!validate(email, password)) return;
+  clearAuthError();
 
-  setLoading(loginBtn, true);
+  if (!email || !password) {
+    return showAuthError("Email and password cannot be empty.");
+  }
 
-  const { error } = await supabase.auth.signInWithPassword({
+  if (!validateEmail(email)) {
+    return showAuthError("Invalid email format.");
+  }
+
+  if (!validatePassword(password)) {
+    return showAuthError("Password must be at least 6 characters.");
+  }
+
+  const btn = document.getElementById("loginBtn");
+  btn.disabled = true;
+  btn.innerText = "Logging in...";
+
+  const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password
   });
 
-  setLoading(loginBtn, false);
+  btn.disabled = false;
+  btn.innerText = "Login";
 
-  if (error) return showError(error.message);
+  if (error) {
+    return showAuthError("Login failed: " + error.message);
+  }
 
-  clearError();
+  if (!data?.user) {
+    return showAuthError("Login failed: No user returned.");
+  }
+
+  currentUser = data.user;
 }
-
 // ======================
 // CHAT STREAMING
 // ======================
