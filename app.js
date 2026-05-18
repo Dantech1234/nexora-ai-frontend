@@ -1,55 +1,84 @@
 import { supabase } from "./supabase.js";
 
-const API_URL = "https://nexora-ai-61ku.onrender.com/chat";
+const API_URL = "https://nexora-ai-61ku.onrender.com";
 
 let currentUser = null;
 let conversation_id = null;
 
 // ======================
-// AUTH STATE RESTORE
+// UI CONTROLLER (SINGLE SOURCE OF TRUTH)
 // ======================
-supabase.auth.getSession().then(({ data }) => {
-  if (data.session) {
+function setUI(user) {
+  const auth = document.getElementById("auth");
+  const app = document.getElementById("app");
+
+  if (user) {
+    auth.classList.add("hidden");
+    app.classList.remove("hidden");
+  } else {
+    auth.classList.remove("hidden");
+    app.classList.add("hidden");
+  }
+}
+
+// ======================
+// AUTH INITIALIZATION (DEVICE-PROOF)
+// ======================
+async function initAuth() {
+  const { data } = await supabase.auth.getSession();
+
+  if (data.session?.user) {
     currentUser = data.session.user;
+    setUI(currentUser);
+    loadConversations();
+  } else {
+    setUI(null);
+  }
+}
 
-    document.getElementById("auth").classList.add("hidden");
-    document.getElementById("app").classList.remove("hidden");
+// Listen for ALL auth changes (login/logout/session refresh)
+supabase.auth.onAuthStateChange((event, session) => {
+  currentUser = session?.user || null;
 
+  setUI(currentUser);
+
+  if (currentUser) {
     loadConversations();
   }
 });
 
+// Run auth init immediately
+initAuth();
+
 // ======================
-// AUTH
+// AUTH FUNCTIONS
 // ======================
 async function signup() {
   const email = document.getElementById("email").value;
   const password = document.getElementById("password").value;
 
-  const { error } = await supabase.auth.signUp({ email, password });
-
-  if (error) return alert(error.message);
-
-  alert("Account created. Now login.");
-}
-
-async function login() {
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
-
-  const { data, error } = await supabase.auth.signInWithPassword({
+  const { error } = await supabase.auth.signUp({
     email,
     password
   });
 
   if (error) return alert(error.message);
 
-  currentUser = data.user;
+  alert("Account created. Check email or login.");
+}
 
-  document.getElementById("auth").classList.add("hidden");
-  document.getElementById("app").classList.remove("hidden");
+async function login() {
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
 
-  loadConversations();
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password
+  });
+
+  if (error) return alert(error.message);
+
+  // NO UI SWITCH HERE — handled by auth listener
 }
 
 // ======================
@@ -60,11 +89,12 @@ function handleKey(e) {
 }
 
 // ======================
-// SEND MESSAGE (STREAM + LOADING STATE)
+// SEND MESSAGE (STREAMING)
 // ======================
 async function sendMessage() {
   const input = document.getElementById("input");
   const text = input.value.trim();
+
   if (!text || !currentUser) return;
 
   addMessage(text, "user");
@@ -85,7 +115,7 @@ async function sendMessage() {
     });
 
     if (!res.ok || !res.body) {
-      botDiv.innerHTML = "Error: failed to connect to AI";
+      botDiv.innerHTML = "Connection error";
       return;
     }
 
@@ -104,12 +134,11 @@ async function sendMessage() {
       scrollBottom();
     }
 
-    // refresh conversations (lightweight update)
     loadConversations();
 
   } catch (err) {
-    botDiv.innerHTML = "Network error. Try again.";
     console.error(err);
+    botDiv.innerHTML = "Network error";
   }
 }
 
@@ -141,7 +170,7 @@ function scrollBottom() {
 }
 
 // ======================
-// FORMAT (ChatGPT-style upgrade)
+// FORMAT (SAFE CHAT STYLE)
 // ======================
 function format(text) {
   return text
@@ -153,13 +182,13 @@ function format(text) {
 // ======================
 // NEW CHAT
 // ======================
-async function newChat() {
+function newChat() {
   conversation_id = null;
   document.getElementById("messages").innerHTML = "";
 }
 
 // ======================
-// LOAD CONVERSATIONS (OPTIMIZED)
+// CONVERSATIONS
 // ======================
 async function loadConversations() {
   if (!currentUser) return;
@@ -171,7 +200,7 @@ async function loadConversations() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Conversation load error:", error);
+    console.error(error);
     return;
   }
 
