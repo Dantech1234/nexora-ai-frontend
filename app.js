@@ -1,9 +1,23 @@
 import { supabase } from "./supabase.js";
 
-const API_URL = "https://YOUR-BACKEND.onrender.com";
+const API_URL = "https://nexora-ai-61ku.onrender.com/chat";
 
 let currentUser = null;
 let conversation_id = null;
+
+// ======================
+// AUTH STATE RESTORE
+// ======================
+supabase.auth.getSession().then(({ data }) => {
+  if (data.session) {
+    currentUser = data.session.user;
+
+    document.getElementById("auth").classList.add("hidden");
+    document.getElementById("app").classList.remove("hidden");
+
+    loadConversations();
+  }
+});
 
 // ======================
 // AUTH
@@ -39,51 +53,64 @@ async function login() {
 }
 
 // ======================
-// KEYBOARD
+// ENTER KEY SUPPORT
 // ======================
 function handleKey(e) {
   if (e.key === "Enter") sendMessage();
 }
 
 // ======================
-// SEND MESSAGE (STREAM)
+// SEND MESSAGE (STREAM + LOADING STATE)
 // ======================
 async function sendMessage() {
   const input = document.getElementById("input");
   const text = input.value.trim();
-  if (!text) return;
+  if (!text || !currentUser) return;
 
   addMessage(text, "user");
   input.value = "";
 
   const botDiv = createBotMessage();
+  botDiv.innerHTML = "Thinking...";
 
-  const res = await fetch(`${API_URL}/chat-stream`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      message: text,
-      user_id: currentUser.id,
-      conversation_id
-    })
-  });
+  try {
+    const res = await fetch(`${API_URL}/chat-stream`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: text,
+        user_id: currentUser.id,
+        conversation_id
+      })
+    });
 
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
+    if (!res.ok || !res.body) {
+      botDiv.innerHTML = "Error: failed to connect to AI";
+      return;
+    }
 
-  let fullText = "";
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
 
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
+    let fullText = "";
 
-    fullText += decoder.decode(value);
-    botDiv.innerHTML = format(fullText);
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
 
-    scrollBottom();
+      fullText += decoder.decode(value);
+      botDiv.innerHTML = format(fullText);
+
+      scrollBottom();
+    }
+
+    // refresh conversations (lightweight update)
+    loadConversations();
+
+  } catch (err) {
+    botDiv.innerHTML = "Network error. Try again.";
+    console.error(err);
   }
-
-  loadConversations(); // refresh sidebar titles
 }
 
 // ======================
@@ -103,6 +130,8 @@ function createBotMessage() {
   div.className = "msg bot";
 
   document.getElementById("messages").appendChild(div);
+  scrollBottom();
+
   return div;
 }
 
@@ -112,7 +141,7 @@ function scrollBottom() {
 }
 
 // ======================
-// FORMAT
+// FORMAT (ChatGPT-style upgrade)
 // ======================
 function format(text) {
   return text
@@ -122,24 +151,34 @@ function format(text) {
 }
 
 // ======================
-// CONVERSATIONS
+// NEW CHAT
 // ======================
 async function newChat() {
   conversation_id = null;
   document.getElementById("messages").innerHTML = "";
 }
 
+// ======================
+// LOAD CONVERSATIONS (OPTIMIZED)
+// ======================
 async function loadConversations() {
-  const { data } = await supabase
+  if (!currentUser) return;
+
+  const { data, error } = await supabase
     .from("conversations")
-    .select("*")
+    .select("id, title, created_at")
     .eq("user_id", currentUser.id)
     .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Conversation load error:", error);
+    return;
+  }
 
   const history = document.getElementById("history");
   history.innerHTML = "";
 
-  data.forEach(c => {
+  (data || []).forEach(c => {
     const div = document.createElement("div");
     div.className = "history-item";
     div.innerText = c.title;
@@ -153,15 +192,26 @@ async function loadConversations() {
   });
 }
 
+// ======================
+// LOAD MESSAGES
+// ======================
 async function loadMessages(id) {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("messages")
     .select("*")
     .eq("conversation_id", id)
     .order("created_at", { ascending: true });
 
+  if (error) {
+    console.error(error);
+    return;
+  }
+
   document.getElementById("messages").innerHTML = "";
 
-  data.forEach(m => {
+  (data || []).forEach(m => {
     addMessage(m.content, m.role === "user" ? "user" : "bot");
   });
+
+  scrollBottom();
+}
