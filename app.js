@@ -370,3 +370,12 @@ async function loadMessages(id) {
 
   scrollBottom();
 }
+
+// ======================
+// MAKE FUNCTIONS GLOBAL (CRITICAL FIX)
+// ======================
+window.login = login;
+window.signup = signup;
+window.sendMessage = sendMessage;
+window.handleKey = handleKey;
+window.newChat = newChat;
